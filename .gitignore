@@ -1,0 +1,14 @@
+.env
+bin/
+dist/
+coverage.txt
+
+# Go
+*.exe
+*.test
+*.out
+
+# IDE
+.idea/
+.vscode/
+.DS_Store
