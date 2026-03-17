@@ -60,6 +60,14 @@ type (
 		ServerExchange string `env:"NATS_RPC_SERVER,required"`
 		URL            string `env:"NATS_URL,required"`
 	}
+
+	METRICS struct {
+		Enabled bool `env:"METRICS_ENABLED" envDefault:"true"`
+	}
+
+	SWAGGER struct {
+		Enabled bool `env:"SWAGGER_ENABLED" envDefault:"false"`
+	}
 )
 
 // NewConfig инициализирует структуру Config, считывая данные из переменных окружения.
