@@ -10,13 +10,15 @@ type (
 	// Config — корневая структура конфигурации всего приложения.
 	// Использует вложенные структуры для логического разделения настроек.
 	Config struct {
-		App  App
-		HTTP HTTP
-		Log  Log
-		PG   PG
-		GRPC GRPC
-		RMQ  RMQ
-		NATS NATS
+		App     App
+		HTTP    HTTP
+		Log     Log
+		PG      PG
+		GRPC    GRPC
+		RMQ     RMQ
+		NATS    NATS
+		Swagger SWAGGER
+		Metrics METRICS
 	}
 
 	// App содержит метаданные приложения, необходимые для логов и мониторинга.
