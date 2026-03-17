@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  # Называем сервис 'postgres', чтобы потом обращаться к нему по этому имени
+  postgres:
+    image: postgres:15-alpine # Используем легкий образ на базе Alpine Linux
+    container_name: core-platform-db
+    environment:
+      # Эти переменные ДОЛЖНЫ совпадать с тем, что ты пропишешь в .env
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: core_db
+    ports:
+      - "5432:5432" # Пробрасываем порт: [внешний]:[внутренний]
+    volumes:
+      # Сохраняем данные базы в локальную папку, чтобы они не удалялись при стопе контейнера
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+
+volumes:
+  postgres_data:
