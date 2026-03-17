@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
+
+	"gitverse.ru/apavlov-systems/core-platform/internal/entity"
 )
 
 // TranslationWebAPI — заглушка внешнего сервиса перевода.
@@ -17,7 +19,7 @@ func New() *TranslationWebAPI {
 	return &TranslationWebAPI{}
 }
 
-// Translate имитирует перевод текста. 
+// Translate имитирует перевод текста.
 // Для наглядности он просто переводит текст в верхний регистр и добавляет метку языка.
 func (w *TranslationWebAPI) Translate(ctx context.Context, source, destination, text string) (string, error) {
 	// Имитируем работу: проверяем контекст (важно для Go-стиля)
@@ -26,11 +28,19 @@ func (w *TranslationWebAPI) Translate(ctx context.Context, source, destination, 
 		return "", ctx.Err()
 	default:
 		// Логика «заглушки»
-		translated := fmt.Sprintf("[%s->%s]: %s", 
-			strings.ToUpper(source), 
-			strings.ToUpper(destination), 
+		translated := fmt.Sprintf("[%s->%s]: %s",
+			strings.ToUpper(source),
+			strings.ToUpper(destination),
 			strings.ToUpper(text),
 		)
 		return translated, nil
 	}
+}
+
+// History — реализация метода интерфейса для заглушки.
+// В реальности внешний API переводчика может не иметь истории,
+// но интерфейс ТРЕБУЕТ наличия этого метода у объекта.
+func (w *TranslationWebAPI) History(ctx context.Context) ([]entity.TranslationHistory, error) {
+	// Возвращаем пустой слайс или nil, так как заглушка не хранит историю (её хранит Postgres)
+	return nil, nil
 }
