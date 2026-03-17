@@ -23,6 +23,7 @@ type (
 	App struct {
 		Name    string `env:"APP_NAME,required"`
 		Version string `env:"APP_VERSION,required"`
+		Env     string `env:"APP_ENV" envDefault:"dev"`
 	}
 
 	// HTTP описывает настройки веб-сервера.
