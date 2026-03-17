@@ -31,3 +31,30 @@ compose-up: ## Запустить инфраструктуру (Postgres) в Doc
 .PHONY: compose-down
 compose-down: ## Остановить все контейнеры
 	docker compose down
+
+# Переменные для удобства (DRY)
+DOCKER_COMPOSE = docker compose
+# Указываем имя сервиса из docker-compose.yml
+MIGRATE_SERVICE = migrate
+
+.PHONY: migrate-create
+migrate-create: ## Создать миграцию (использование: make migrate-create name=init_table)
+	@if [ -z "$(name)" ]; then echo "Error: name is required. Use: make migrate-create name=my_migration"; exit 1; fi
+	$(DOCKER_COMPOSE) run --rm --entrypoint migrate $(MIGRATE_SERVICE) create -ext sql -dir /migrations -seq $(name)
+
+# В начале Makefile (где-то под импортом .env)
+# Эти переменные подтянутся из твоего .env автоматически
+PG_URL_DOCKER = postgres://user:password@postgres:5432/core_db?sslmode=disable
+
+.PHONY: migrate-up
+migrate-up: ## Применить все миграции (явная передача параметров)
+	docker compose run --rm migrate -path=/migrations/ -database "$(PG_URL_DOCKER)" up
+
+.PHONY: migrate-down
+migrate-down: ## Откатить миграцию (явная передача параметров)
+	docker compose run --rm migrate -path=/migrations/ -database "$(PG_URL_DOCKER)" down 1
+
+
+
+
+

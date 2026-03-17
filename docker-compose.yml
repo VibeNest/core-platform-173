@@ -17,5 +17,21 @@ services:
       - postgres_data:/var/lib/postgresql/data
     restart: always
 
+  migrate:
+    image: migrate/migrate
+    volumes:
+      - ./migrations:/migrations
+    environment:
+      # MIGRATE_SOURCE говорит, где лежат .sql файлы
+      - MIGRATE_SOURCE=file://migrations
+      # MIGRATE_DATABASE говорит, куда подключаться (используем имя сервиса db)
+      - MIGRATE_DATABASE=postgres://user:password@postgres:5432/core_db?sslmode=disable
+    # Убираем всё лишнее из command, оставляем только само действие
+    command: up
+    depends_on:
+      - postgres
+
+  
+
 volumes:
   postgres_data:
