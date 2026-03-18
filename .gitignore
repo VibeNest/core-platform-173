@@ -2,6 +2,7 @@
 bin/
 dist/
 coverage.txt
+logs/
 
 # Go
 *.exe

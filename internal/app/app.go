@@ -1,10 +1,13 @@
 package app
 
 import (
+	"io"
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/adaptor"
@@ -22,12 +25,30 @@ import (
 	"gitverse.ru/apavlov-systems/core-platform/pkg/amqprpc"
 	grpcserver "gitverse.ru/apavlov-systems/core-platform/pkg/grcpserver"
 	"gitverse.ru/apavlov-systems/core-platform/pkg/httpserver"
+	"gitverse.ru/apavlov-systems/core-platform/pkg/logger"
 	"gitverse.ru/apavlov-systems/core-platform/pkg/natsrpc"
 	"google.golang.org/grpc"
 )
 
 // Run — “продолжение main”: тут будет DI и запуск серверов.
 func Run(cfg *config.Config) {
+	// 1. Формируем имя файла с датой (например, logs/2026-03-18.log)
+	logDir := "./logs"
+	_ = os.MkdirAll(logDir, 0755)
+	fileName := time.Now().Format("2006-01-02") + ".log"
+	fullPath := filepath.Join(logDir, fileName)
+
+	// 2. Открываем этот файл
+	f, err := os.OpenFile(fullPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatalf("app - Run - open log file: %v", err)
+	}
+	defer f.Close()
+
+	// 3. Инициализируем логгер
+	multiWriter := io.MultiWriter(os.Stdout, f)
+	l := logger.New(cfg.Log.Level, multiWriter)
+
 	// 1. Инициализация Postgres (Infrastructure)
 	// Мы используем нашу обертку из pkg/postgres, которая умеет ждать базу
 	pg, err := postgres.New(cfg.PG.URL) // Добавь настройки PoolMax если реализовал в pkg
@@ -45,7 +66,7 @@ func Run(cfg *config.Config) {
 	translator := webapi.New()
 
 	// Инициализация UseCase (Бизнес-логика - ОДНА для всех)
-	translationUseCase := usecase.New(historyRepo, translator)
+	translationUseCase := usecase.New(historyRepo, translator, l)
 
 	// --- Инициализация Транспортов ---
 
@@ -69,7 +90,7 @@ func Run(cfg *config.Config) {
 	}
 	defer nc.Close()
 	natsServer := natsrpc.NewServer(nc)
-	nats_ctrl.RegisterRoutes(natsServer, translationUseCase)
+	nats_ctrl.RegisterRoutes(natsServer, translationUseCase, l)
 
 	// 6. AMQP (RabbitMQ) RPC
 	rmqConn, err := amqp.Dial(cfg.RMQ.URL)
@@ -79,7 +100,7 @@ func Run(cfg *config.Config) {
 	defer rmqConn.Close()
 	rmqChan, _ := rmqConn.Channel()
 	rmqServer := amqprpc.NewServer(rmqConn, rmqChan)
-	amqp_ctrl.RegisterRoutes(rmqServer, translationUseCase)
+	amqp_ctrl.RegisterRoutes(rmqServer, translationUseCase, l)
 
 	// --- Запуск серверов ---
 	// gRPC Server (запуск теперь внутри pkg)

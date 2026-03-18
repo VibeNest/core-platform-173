@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"gitverse.ru/apavlov-systems/core-platform/internal/entity"
+	"gitverse.ru/apavlov-systems/core-platform/pkg/logger"
 )
 
 var (
@@ -19,17 +20,20 @@ var (
 type TranslationUseCase struct {
 	repo   TranslationRepo
 	webAPI TranslationWebAPI
+	l      *logger.Logger
 }
 
 // New — конструктор с Dependency Injection (DI).
-func New(r TranslationRepo, w TranslationWebAPI) *TranslationUseCase {
+func New(r TranslationRepo, w TranslationWebAPI, l *logger.Logger) *TranslationUseCase {
 	return &TranslationUseCase{
 		repo:   r,
 		webAPI: w,
+		l: l,
 	}
 }
 
 func (uc *TranslationUseCase) Translate(ctx context.Context, src, dst, text string) (entity.TranslationHistory, error) {
+	uc.l.Debug("UseCase: translating %s to %s", src, dst)
 	// 1. Получаем СТРОКУ от внешнего API
 	translatedText, err := uc.webAPI.Translate(ctx, src, dst, text)
 	if err != nil {

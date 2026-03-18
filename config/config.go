@@ -37,7 +37,8 @@ type (
 
 	// Log задает уровень детализации логов (debug, info, warn, error).
 	Log struct {
-		Level string `env:"LOG_LEVEL,required"`
+		Level    string `env:"LOG_LEVEL,required"`
+		FilePath string `env:"LOG_FILE_PATH" envDefault:"./logs/app.log"` // Путь к файлу логов
 	}
 
 	// PG содержит параметры подключения к PostgreSQL.

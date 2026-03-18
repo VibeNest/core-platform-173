@@ -5,14 +5,16 @@ import (
 	"encoding/json"
 
 	"gitverse.ru/apavlov-systems/core-platform/internal/usecase"
+	"gitverse.ru/apavlov-systems/core-platform/pkg/logger"
 )
 
 type translationRoutes struct {
 	t usecase.Translation
+	l *logger.Logger
 }
 
-func newTranslationRoutes(t usecase.Translation) *translationRoutes {
-	return &translationRoutes{t}
+func newTranslationRoutes(t usecase.Translation, l *logger.Logger) *translationRoutes {
+	return &translationRoutes{t, l}
 }
 
 // Request/Response структуры для JSON
@@ -23,6 +25,7 @@ type translateRequest struct {
 }
 
 func (r *translationRoutes) translate(ctx context.Context, data []byte) (interface{}, error) {
+	r.l.Info("NATS RPC: received translate request")
 	var req translateRequest
 	if err := json.Unmarshal(data, &req); err != nil {
 		return nil, err // В будущем тут будет кастомная ошибка

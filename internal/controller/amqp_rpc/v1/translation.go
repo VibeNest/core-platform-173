@@ -5,10 +5,12 @@ import (
 	"encoding/json" // Добавь импорт для работы с JSON
 
 	"gitverse.ru/apavlov-systems/core-platform/internal/usecase"
+	"gitverse.ru/apavlov-systems/core-platform/pkg/logger"
 )
 
 type translationRoutes struct {
 	t usecase.Translation
+	l *logger.Logger
 }
 
 // Вспомогательная структура для парсинга запроса из RabbitMQ
@@ -19,6 +21,7 @@ type translateRequest struct {
 }
 
 func (r *translationRoutes) translate(ctx context.Context, data []byte) (interface{}, error) {
+	r.l.Info("AMPQ RPC: received translate request")
 	// 1. Распаковываем входящие байты в структуру
 	var req translateRequest
 	if err := json.Unmarshal(data, &req); err != nil {
