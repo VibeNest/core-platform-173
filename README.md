@@ -102,3 +102,22 @@ $   nats request v1.translation.history '{}'
 [{"id":"c39bfe7f-37f2-485d-ba58-616d5e9fd5a5","source":"en","destination":"ru","original":"Глубокое погружение в чистую архитектуру","translation":"[EN-\u003eRU]: ГЛУБОКОЕ ПОГРУЖЕНИЕ В ЧИСТУЮ АРХИТЕКТУРУ","created_at":"2026-03-17T19:39:13.034007+03:00"},{"id":"ec4751ee-2460-4d3f-aa11-99a9aed409ab","source":"en","destination":"ru","original":"Глубокое погружение в чистую архитектуру","translation":"[EN-\u003eRU]: ГЛУБОКОЕ ПОГРУЖЕНИЕ В ЧИСТУЮ АРХИТЕКТУРУ","created_at":"2026-03-17T19:31:05.167368+03:00"},{"id":"00000000-0000-0000-0000-000000000000","source":"en","destination":"ru","original":"","translation":"[EN-\u003eRU]: ","created_at":"0001-01-01T02:30:17+02:30"}]
 
 ```
+
+### 4. RabbitMQ RPC (AMQP)
+Использует порт брокера `5672`. Для проверки Request-Reply взаимодействия используется тестовый клиент на Go, так как протокол требует настройки временных очередей для ответа.
+
+*   **Запуск клиента:**
+    ```bash
+    go run test/amqp_client.go
+    ```
+
+> **Примечание:** Скрипт автоматически создает временную очередь `amq.rabbitmq.reply-to`, отправляет запрос в сервис и ожидает JSON-ответ с результатом перевода.
+
+*   **Процесс выполнения:**
+```bash
+$ go run test/amqp_client.go
+ [x] Sent request: {"source":"en", "destination":"ru", "original":"Hello Rabbit RPC"}
+ [.] Got response: {"id":"00000000-0000-0000-0000-000000000000","source":"en","destination":"ru","original":"Hello Rabbit RPC","translation":"[EN-\u003eRU]: HELLO RABBIT RPC","created_at":"0001-01-01T00:00:00Z"}
+a
+```
+
