@@ -31,7 +31,23 @@ services:
     depends_on:
       - postgres
 
-  
+  # --- Брокер сообщений NATS ---
+  nats:
+    image: nats:latest
+    container_name: core-platform-nats
+    ports:
+      - "4222:4222" # Основной порт для клиентов
+      - "8222:8222" # HTTP мониторинг (можно зайти через браузер)
+    restart: always
+
+  # --- Брокер сообщений RabbitMQ ---
+  rabbitmq:
+    image: rabbitmq:3-management-alpine # Версия с веб-панелью управления
+    container_name: core-platform-rmq
+    ports:
+      - "5672:5672"   # Порт для AMQP протокола
+      - "15672:15672" # Порт для Web UI (логин/пароль: guest/guest)
+    restart: always
 
 volumes:
   postgres_data:

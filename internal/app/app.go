@@ -16,6 +16,7 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 	"gitverse.ru/apavlov-systems/core-platform/config"
 	amqp_ctrl "gitverse.ru/apavlov-systems/core-platform/internal/controller/amqp_rpc/v1"
+	grpc_ctrl "gitverse.ru/apavlov-systems/core-platform/internal/controller/grpc/v1"
 	"gitverse.ru/apavlov-systems/core-platform/internal/controller/http"
 	nats_ctrl "gitverse.ru/apavlov-systems/core-platform/internal/controller/nats_rpc/v1"
 	"gitverse.ru/apavlov-systems/core-platform/internal/repo/persistent"
@@ -63,6 +64,7 @@ func Run(cfg *config.Config) {
 	// 4. gRPC Server
 	gRPCServer := grpc.NewServer()
 
+	grpc_ctrl.RegisterRoutes(gRPCServer, translationUseCase)
 	// 5. NATS RPC
 	nc, err := nats.Connect(cfg.NATS.URL)
 	if err != nil {
@@ -82,9 +84,9 @@ func Run(cfg *config.Config) {
 	rmqServer := amqprpc.NewServer(rmqConn, rmqChan)
 	amqp_ctrl.RegisterRoutes(rmqServer, translationUseCase)
 
+	// --- Запуск серверов ---
 
 	notify := make(chan error, 1)
-
 
 	// gRPC
 	go func() {
