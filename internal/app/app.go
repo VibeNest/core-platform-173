@@ -1,9 +1,7 @@
 package app
 
 import (
-	"fmt"
 	"log"
-	"net"
 	"os"
 	"os/signal"
 	"syscall"
@@ -22,6 +20,7 @@ import (
 	"gitverse.ru/apavlov-systems/core-platform/internal/repo/webapi"
 	"gitverse.ru/apavlov-systems/core-platform/internal/usecase"
 	"gitverse.ru/apavlov-systems/core-platform/pkg/amqprpc"
+	grpcserver "gitverse.ru/apavlov-systems/core-platform/pkg/grcpserver"
 	"gitverse.ru/apavlov-systems/core-platform/pkg/httpserver"
 	"gitverse.ru/apavlov-systems/core-platform/pkg/natsrpc"
 	"google.golang.org/grpc"
@@ -83,19 +82,8 @@ func Run(cfg *config.Config) {
 	amqp_ctrl.RegisterRoutes(rmqServer, translationUseCase)
 
 	// --- Запуск серверов ---
-
-	notify := make(chan error, 1)
-
-	// gRPC
-	go func() {
-		listener, err := net.Listen("tcp", ":"+cfg.GRPC.Port)
-		if err != nil {
-			notify <- fmt.Errorf("grpc listen: %w", err)
-			return
-		}
-		log.Printf("app - Run - gRPC server listing on %s", cfg.GRPC.Port)
-		notify <- gRPCServer.Serve(listener)
-	}()
+	// gRPC Server (запуск теперь внутри pkg)
+	gRPCServerApp := grpcserver.New(gRPCServer, cfg.GRPC.Port)
 
 	// --- Ожидание завершения (Graceful Shutdown) ---
 
@@ -105,12 +93,15 @@ func Run(cfg *config.Config) {
 	select {
 	case s := <-interrupt:
 		log.Printf("app - Run - signal: " + s.String())
-	case err := <-notify:
-		log.Printf("app - Run - server error: %v", err)
+	case err := <-gRPCServerApp.Notify(): // Слушаем ошибку из обертки
+		log.Printf("app - Run - gRPC server error: %v", err)
+	case err := <-httpServer.Notify(): // И от HTTP тоже
+		log.Printf("app - Run - HTTP server error: %v", err)
 	}
 
 	// Порядок остановки
 	httpServer.Shutdown()
-	gRPCServer.GracefulStop()
+	gRPCServerApp.Shutdown()
+
 	log.Printf("app - Run - stopped")
 }
