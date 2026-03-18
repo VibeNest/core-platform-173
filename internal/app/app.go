@@ -11,7 +11,9 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/adaptor"
 	"github.com/nats-io/nats.go"
+	amqp "github.com/rabbitmq/amqp091-go"
 	"gitverse.ru/apavlov-systems/core-platform/config"
 	amqp_ctrl "gitverse.ru/apavlov-systems/core-platform/internal/controller/amqp_rpc/v1"
 	"gitverse.ru/apavlov-systems/core-platform/internal/controller/http"
@@ -53,11 +55,13 @@ func Run(cfg *config.Config) {
 	// 1. Создаем объект приложения (Fiber), который просит NewRouter
 	app := fiber.New()
 	http.NewRouter(app, translationUseCase, cfg)
-	httpServer := httpserver.New(handler, httpserver.Port(cfg.HTTP.Port))
+
+	// Используем adaptor.FiberApp, чтобы превратить app в http.Handler
+	// И используем "=", так как httpServer уже мог быть объявлен выше (ошибка NoNewVar)
+	httpServer := httpserver.New(adaptor.FiberApp(app), httpserver.Port(cfg.HTTP.Port))
 
 	// 4. gRPC Server
 	gRPCServer := grpc.NewServer()
-	grpc_ctrl.NewRouter(gRPCServer, translationUseCase)
 
 	// 5. NATS RPC
 	nc, err := nats.Connect(cfg.NATS.URL)
@@ -78,15 +82,9 @@ func Run(cfg *config.Config) {
 	rmqServer := amqprpc.NewServer(rmqConn, rmqChan)
 	amqp_ctrl.RegisterRoutes(rmqServer, translationUseCase)
 
-	// --- Запуск серверов ---
 
 	notify := make(chan error, 1)
 
-	// HTTP
-	go func() {
-		log.Printf("app - Run - HTTP server listing on %s", cfg.HTTP.Port)
-		notify <- httpServer.Start()
-	}()
 
 	// gRPC
 	go func() {

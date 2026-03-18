@@ -15,6 +15,10 @@ type Server struct {
 	channel *amqp.Channel
 }
 
+func NewServer(conn *amqp.Connection, ch *amqp.Channel) *Server {
+	return &Server{conn: conn, channel: ch}
+}
+
 func (s *Server) Register(routingKey string, handler Handler) {
 	// 1. Объявляем очередь (Queue), которую будем слушать
 	q, err := s.channel.QueueDeclare(
