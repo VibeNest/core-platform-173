@@ -19,3 +19,44 @@ Observability vs Security: Технические детали (SQL errors, stac
 ```BASH
 docker exec -it core-platform-db psql -U user -d core_db -c "SELECT * FROM history;"
 ```
+
+## 🛠 Проверка работоспособности (Testing Guide)
+
+После запуска инфраструктуры (`docker-compose up -d`) и приложения (`make run`), вы можете проверить работу сервиса через разные протоколы. Все они используют единую бизнес-логику (**UseCase**) и базу данных.
+
+### 1. REST API (HTTP / Fiber)
+Самый простой способ проверки через терминал с помощью `curl`.
+
+*   **Проверка статуса (Healthcheck):**
+    ```bash
+    curl http://localhost:8080/healthz
+    ```
+*   **Создать новый перевод:**
+    ```bash
+    curl -X POST http://localhost:8080/v1/translation/do \
+      -H "Content-Type: application/json" \
+      -d '{"source":"en", "destination":"ru", "original":"Hello World"}'
+    ```
+*   **Получить историю всех переводов:**
+    ```bash
+    curl http://localhost:8080/v1/translation/history
+    ```
+
+---
+
+### 2. gRPC API
+Для тестирования gRPC используйте утилиту [grpcurl](https://github.com). Сервер поддерживает **Reflection API**.
+
+*   **Список доступных методов:**
+    ```bash
+    grpcurl -plaintext localhost:8081 list v1.Translation
+    ```
+*   **Вызов метода Translate (JSON данные):**
+    ```bash
+    grpcurl -plaintext -d '{"source":"en", "destination":"ru", "original":"Hello gRPC"}' \
+      localhost:8081 v1.Translation/Translate
+    ```
+*   **Запрос истории через gRPC:**
+    ```bash
+    grpcurl -plaintext localhost:8081 v1.Translation/GetHistory
+    ```

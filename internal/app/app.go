@@ -1,14 +1,12 @@
 package app
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"net"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/adaptor"
@@ -115,18 +113,4 @@ func Run(cfg *config.Config) {
 	httpServer.Shutdown()
 	gRPCServer.GracefulStop()
 	log.Printf("app - Run - stopped")
-}
-
-// Вспомогательная функция для "прогрева" системы
-func testUseCase(uc *usecase.TranslationUseCase) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	res, err := uc.Translate(ctx, "en", "ru", "Глубокое погружение в чистую архитектуру")
-	if err != nil {
-		log.Printf("[TEST] Сбой выполнения сценария UseCase: %v", err)
-		return
-	}
-
-	log.Printf("[TEST] Успешно! Оригинал: %s | Перевод: %s", res.Original, res.Translation)
 }
