@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package v1;
+
+// Путь, где будет лежать сгенерированный код
+option go_package = "internal/controller/grpc/v1";
+
+service Translation {
+  rpc Translate(TranslateRequest) returns (TranslateResponse);
+  rpc GetHistory(GetHistoryRequest) returns (GetHistoryResponse);
+}
+
+message TranslateRequest {
+  string source = 1;
+  string destination = 2;
+  string original = 3;
+}
+
+message TranslateResponse {
+  string translation = 1;
+}
+
+message HistoryItem {
+  string source = 1;
+  string destination = 2;
+  string original = 3;
+  string translation = 4;
+}
+
+message GetHistoryRequest {}
+
+message GetHistoryResponse {
+  repeated HistoryItem history = 1;
+}

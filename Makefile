@@ -54,6 +54,13 @@ migrate-up: ## Применить все миграции (явная перед
 migrate-down: ## Откатить миграцию (явная передача параметров)
 	docker compose run --rm migrate -path=/migrations/ -database "$(PG_URL_DOCKER)" down 1
 
+.PHONY: proto
+proto:
+	@mkdir -p internal/controller/grpc/v1
+	protoc --proto_path=api/proto/v1 \
+		--go_out=internal/controller/grpc/v1 --go_opt=paths=source_relative \
+		--go-grpc_out=internal/controller/grpc/v1 --go-grpc_opt=paths=source_relative \
+		api/proto/v1/*.proto
 
 
 
