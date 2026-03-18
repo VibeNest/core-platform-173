@@ -9,8 +9,12 @@ import (
 type (
 	// Translation — интерфейс внешнего сервиса перевода (Web API, Mock или Stub).
 	Translation interface {
-		Translate(ctx context.Context, source, destination, text string) (string, error)
+		Translate(context.Context, string, string, string) (entity.TranslationHistory, error)
 		History(ctx context.Context) ([]entity.TranslationHistory, error)
+	}
+
+	TranslationWebAPI interface {
+		Translate(context.Context, string, string, string) (string, error)
 	}
 
 	// TranslationRepo — интерфейс для работы с базой данных (PostgreSQL, MongoDB).

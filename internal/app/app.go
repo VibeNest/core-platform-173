@@ -2,25 +2,32 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"net"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
+	"github.com/gofiber/fiber/v2"
+	"github.com/nats-io/nats.go"
 	"gitverse.ru/apavlov-systems/core-platform/config"
+	amqp_ctrl "gitverse.ru/apavlov-systems/core-platform/internal/controller/amqp_rpc/v1"
+	"gitverse.ru/apavlov-systems/core-platform/internal/controller/http"
+	nats_ctrl "gitverse.ru/apavlov-systems/core-platform/internal/controller/nats_rpc/v1"
 	"gitverse.ru/apavlov-systems/core-platform/internal/repo/persistent"
 	"gitverse.ru/apavlov-systems/core-platform/internal/repo/postgres"
 	"gitverse.ru/apavlov-systems/core-platform/internal/repo/webapi"
 	"gitverse.ru/apavlov-systems/core-platform/internal/usecase"
+	"gitverse.ru/apavlov-systems/core-platform/pkg/amqprpc"
+	"gitverse.ru/apavlov-systems/core-platform/pkg/httpserver"
+	"gitverse.ru/apavlov-systems/core-platform/pkg/natsrpc"
+	"google.golang.org/grpc"
 )
 
 // Run — “продолжение main”: тут будет DI и запуск серверов.
 func Run(cfg *config.Config) {
-	_ = cfg
-	if cfg.App.Env == "dev" {
-		log.Println("🛠 Запущено в режиме РАЗРАБОТКИ.")
-	} else {
-		log.Println("🚀 Запущено в режиме ПРОДАКШЕН. Максимальная производительность.")
-	}
-
 	// 1. Инициализация Postgres (Infrastructure)
 	// Мы используем нашу обертку из pkg/postgres, которая умеет ждать базу
 	pg, err := postgres.New(cfg.PG.URL) // Добавь настройки PoolMax если реализовал в pkg
@@ -29,26 +36,85 @@ func Run(cfg *config.Config) {
 	}
 	defer pg.Close()
 
-	// 2. Инициализация Репозиториев (Adapters)
+	// Инициализация Репозиториев (Adapters)
 	// Передаем подключение к базе в репозиторий истории
 	historyRepo := persistent.New(pg)
 
-	// 3. Инициализация Внешних API (Adapters)
+	// Инициализация Внешних API (Adapters)
 	// Наша заглушка-переводчик
 	translator := webapi.New()
 
-	// 4. Инициализация UseCase (Business Logic / Core)
-	// Соединяем "руки" (repo/webapi) с "мозгом" (usecase)
+	// Инициализация UseCase (Бизнес-логика - ОДНА для всех)
 	translationUseCase := usecase.New(historyRepo, translator)
 
-	// 5. Проверка работоспособности (Health Check)
-	// В режиме dev сделаем тестовый вызов, чтобы убедиться, что всё связано верно
-	if cfg.App.Env == "dev" {
-		testUseCase(translationUseCase)
+	// --- Инициализация Транспортов ---
+
+	// HTTP Server (REST)
+	// 1. Создаем объект приложения (Fiber), который просит NewRouter
+	app := fiber.New()
+	http.NewRouter(app, translationUseCase, cfg)
+	httpServer := httpserver.New(handler, httpserver.Port(cfg.HTTP.Port))
+
+	// 4. gRPC Server
+	gRPCServer := grpc.NewServer()
+	grpc_ctrl.NewRouter(gRPCServer, translationUseCase)
+
+	// 5. NATS RPC
+	nc, err := nats.Connect(cfg.NATS.URL)
+	if err != nil {
+		log.Fatalf("app - Run - nats.Connect: %v", err)
+	}
+	defer nc.Close()
+	natsServer := natsrpc.NewServer(nc)
+	nats_ctrl.RegisterRoutes(natsServer, translationUseCase)
+
+	// 6. AMQP (RabbitMQ) RPC
+	rmqConn, err := amqp.Dial(cfg.RMQ.URL)
+	if err != nil {
+		log.Fatalf("app - Run - amqp.Dial: %v", err)
+	}
+	defer rmqConn.Close()
+	rmqChan, _ := rmqConn.Channel()
+	rmqServer := amqprpc.NewServer(rmqConn, rmqChan)
+	amqp_ctrl.RegisterRoutes(rmqServer, translationUseCase)
+
+	// --- Запуск серверов ---
+
+	notify := make(chan error, 1)
+
+	// HTTP
+	go func() {
+		log.Printf("app - Run - HTTP server listing on %s", cfg.HTTP.Port)
+		notify <- httpServer.Start()
+	}()
+
+	// gRPC
+	go func() {
+		listener, err := net.Listen("tcp", ":"+cfg.GRPC.Port)
+		if err != nil {
+			notify <- fmt.Errorf("grpc listen: %w", err)
+			return
+		}
+		log.Printf("app - Run - gRPC server listing on %s", cfg.GRPC.Port)
+		notify <- gRPCServer.Serve(listener)
+	}()
+
+	// --- Ожидание завершения (Graceful Shutdown) ---
+
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
+
+	select {
+	case s := <-interrupt:
+		log.Printf("app - Run - signal: " + s.String())
+	case err := <-notify:
+		log.Printf("app - Run - server error: %v", err)
 	}
 
-	log.Printf("Приложение %s готово и ожидает транспортный уровень...", cfg.App.Name)
-
+	// Порядок остановки
+	httpServer.Shutdown()
+	gRPCServer.GracefulStop()
+	log.Printf("app - Run - stopped")
 }
 
 // Вспомогательная функция для "прогрева" системы

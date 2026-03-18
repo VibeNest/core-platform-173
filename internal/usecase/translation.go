@@ -18,43 +18,36 @@ var (
 // TranslationUseCase — основной узел бизнес-логики.
 type TranslationUseCase struct {
 	repo   TranslationRepo
-	webAPI Translation
+	webAPI TranslationWebAPI
 }
 
 // New — конструктор с Dependency Injection (DI).
-func New(r TranslationRepo, w Translation) *TranslationUseCase {
+func New(r TranslationRepo, w TranslationWebAPI) *TranslationUseCase {
 	return &TranslationUseCase{
 		repo:   r,
 		webAPI: w,
 	}
 }
 
-// Translate — главный бизнес-сценарий: перевести текст и сохранить историю.
 func (uc *TranslationUseCase) Translate(ctx context.Context, src, dst, text string) (entity.TranslationHistory, error) {
-	// 1. Создаем черновик сущности (здесь сработает нормализация строк)
-	history := entity.NewTranslationHistory(src, dst, text, "")
-
-	// 2. Бизнес-валидация сущности
-	if err := history.Validate(); err != nil {
-		return entity.TranslationHistory{}, fmt.Errorf("usecase - Translate - validate: %w", ErrInvalidInput)
-	}
-
-	// 3. Вызов внешнего переводчика
-	translated, err := uc.webAPI.Translate(ctx, history.Source, history.Destination, history.Original)
+	// 1. Получаем СТРОКУ от внешнего API
+	translatedText, err := uc.webAPI.Translate(ctx, src, dst, text)
 	if err != nil {
-		return entity.TranslationHistory{}, fmt.Errorf("usecase - Translate - webAPI.Translate: %w", ErrInternal)
+		return entity.TranslationHistory{}, err
 	}
 
-	// 4. Обновляем сущность результатом перевода
-	history.Translation = translated
-
-	// 5. Сохранение в репозиторий (базу данных)
-	err = uc.repo.StoreHistory(ctx, *history)
-	if err != nil {
-		return entity.TranslationHistory{}, fmt.Errorf("usecase - Translate - repo.StoreHistory: %w", ErrInternal)
+	// 2. САМИ создаем структуру истории
+	history := entity.TranslationHistory{
+		Source:      src,
+		Destination: dst,
+		Original:    text,
+		Translation: translatedText, // кладем строку сюда
 	}
 
-	return *history, nil
+	// 3. Сохраняем в базу через репозиторий
+	_ = uc.repo.StoreHistory(ctx, history)
+
+	return history, nil
 }
 
 // History — получение списка последних переводов.
