@@ -1,53 +1,40 @@
 version: '3.8'
-
 services:
-  # Называем сервис 'postgres', чтобы потом обращаться к нему по этому имени
   postgres:
-    image: postgres:15-alpine # Используем легкий образ на базе Alpine Linux
+    image: postgres:15-alpine
     container_name: core-platform-db
     environment:
-      # Эти переменные ДОЛЖНЫ совпадать с тем, что ты пропишешь в .env
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
       POSTGRES_DB: core_db
-    ports:
-      - "5432:5432" # Пробрасываем порт: [внешний]:[внутренний]
     volumes:
-      # Сохраняем данные базы в локальную папку, чтобы они не удалялись при стопе контейнера
-      - postgres_data:/var/lib/postgresql/data
+    - postgres_data:/var/lib/postgresql/data
     restart: always
-
+    expose:
+    - "5432"
   migrate:
     image: migrate/migrate
     volumes:
-      - ./migrations:/migrations
+    - ./migrations:/migrations
     environment:
-      # MIGRATE_SOURCE говорит, где лежат .sql файлы
-      - MIGRATE_SOURCE=file://migrations
-      # MIGRATE_DATABASE говорит, куда подключаться (используем имя сервиса db)
-      - MIGRATE_DATABASE=postgres://user:password@postgres:5432/core_db?sslmode=disable
-    # Убираем всё лишнее из command, оставляем только само действие
+    - MIGRATE_SOURCE=file://migrations
+    - MIGRATE_DATABASE=postgres://user:password@postgres:5432/core_db?sslmode=disable
     command: up
     depends_on:
-      - postgres
-
-  # --- Брокер сообщений NATS ---
+    - postgres
   nats:
     image: nats:latest
     container_name: core-platform-nats
-    ports:
-      - "4222:4222" # Основной порт для клиентов
-      - "8222:8222" # HTTP мониторинг (можно зайти через браузер)
     restart: always
-
-  # --- Брокер сообщений RabbitMQ ---
+    expose:
+    - "4222"
+    - "8222"
   rabbitmq:
-    image: rabbitmq:3-management-alpine # Версия с веб-панелью управления
+    image: rabbitmq:3-management-alpine
     container_name: core-platform-rmq
-    ports:
-      - "5672:5672"   # Порт для AMQP протокола
-      - "15672:15672" # Порт для Web UI (логин/пароль: guest/guest)
     restart: always
-
+    expose:
+    - "5672"
+    - "15672"
 volumes:
   postgres_data:
